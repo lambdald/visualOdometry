@@ -42,9 +42,9 @@ void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<Matri
     // putText(traj, text, textOrg, fontFace, fontScale, Scalar::all(255), thickness, 8);
 
     cv::imshow( "Trajectory", trajectory );
-
-
-    cv::waitKey(1);
+    int key = cv::waitKey(1);
+	if (key == 'q')
+		exit(0);
 }
 
 
@@ -169,35 +169,20 @@ void loadGyro(std::string filename, std::vector<std::vector<double>>& time_gyros
     }
 }
 
-void loadImageLeft(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, std::string filepath){
-    char file[200];
-    sprintf(file, "image_0/%06d.png", frame_id);
-    
-    // sprintf(file, "image_0/%010d.png", frame_id);
-    std::string filename = filepath + std::string(file);
+void loadImageLeft(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, const std::string& filepath){
+    //sprintf(file, "image_2/%06d.png", frame_id);
+
+	std::string filename = filepath + cv::format("image_2/%06d.png", frame_id);
 
     image_color = cv::imread(filename, cv::IMREAD_COLOR);
     cvtColor(image_color, image_gary, cv::COLOR_BGR2GRAY);
 }
 
-void loadImageRight(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, std::string filepath){
-    char file[200];
-    sprintf(file, "image_1/%06d.png", frame_id);
+void loadImageRight(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, const std::string& filepath){
+    //sprintf(file, "image_3/%06d.png", frame_id);
 
-    // sprintf(file, "image_0/%010d.png", frame_id);
-    std::string filename = filepath + std::string(file);
+	std::string filename = filepath + cv::format("image_3/%06d.png", frame_id);
 
     image_color = cv::imread(filename, cv::IMREAD_COLOR);
     cvtColor(image_color, image_gary, cv::COLOR_BGR2GRAY);
 }
-
-
-
-
-
-
-
-
-
-
-

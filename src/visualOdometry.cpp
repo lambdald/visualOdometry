@@ -177,6 +177,7 @@ void displayTracking(cv::Mat& imageLeft_t1,
                      std::vector<cv::Point2f>&  pointsLeft_t0,
                      std::vector<cv::Point2f>&  pointsLeft_t1)
 {
+	TicTok tic;
       // -----------------------------------------
       // Display feature racking
       // -----------------------------------------
@@ -202,6 +203,7 @@ void displayTracking(cv::Mat& imageLeft_t1,
       }
 
       cv::imshow("vis ", vis );  
+	  std::cout << "display tracking: " << tic.tok() << "ms" << std::endl;
 }
 
 void visualOdometry(int current_frame_id, std::string filepath,

@@ -1,10 +1,12 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <iostream>
 #include <stdio.h>
 #include <math.h>
 #include <vector>
 #include <limits>
+#include <algorithm>
 
-#include "mail.h"
 #include "matrix.h"
 #include "evaluate_odometry.h"
 using namespace std;
@@ -394,7 +396,7 @@ void saveStats (vector<errors> err,string dir) {
   // close file
   fclose(fp);
 }
-
+/*
 bool eval (string result_sha,Mail* mail) {
 
   // ground truth and result directories
@@ -424,13 +426,13 @@ bool eval (string result_sha,Mail* mail) {
     vector<Matrix> poses_result = loadPoses(result_dir + "/data/" + file_name);
    
     // plot status
-    mail->msg("Processing: %s, poses: %d/%d",file_name,poses_result.size(),poses_gt.size());
+    //mail->msg("Processing: %s, poses: %d/%d",file_name,poses_result.size(),poses_gt.size());
     
     // check for errors
-    if (poses_gt.size()==0 || poses_result.size()!=poses_gt.size()) {
-      mail->msg("ERROR: Couldn't read (all) poses of: %s", file_name);
-      return false;
-    }
+    //if (poses_gt.size()==0 || poses_result.size()!=poses_gt.size()) {
+    //  mail->msg("ERROR: Couldn't read (all) poses of: %s", file_name);
+    //  return false;
+    //}
 
     // compute sequence errors    
     vector<errors> seq_err = calcSequenceErrors(poses_gt,poses_result);
@@ -467,7 +469,7 @@ bool eval (string result_sha,Mail* mail) {
   // success
 	return true;
 }
-
+*/
 // int32_t main (int32_t argc,char *argv[]) {
 
 //   // we need 2 or 4 arguments!

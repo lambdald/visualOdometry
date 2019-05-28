@@ -1,5 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
+#define _CRT_SECURE_NO_WARNINGS
 
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -16,10 +17,28 @@
 #include <sstream>
 #include <fstream>
 #include <string>
-
+#include <chrono>
 
 #include "feature.h"
-#include "matrix.h"
+#include "evaluate/matrix.h"
+
+
+// º∆ ±£¨∑µªÿ∫¡√Î
+class TicTok
+{
+public:
+	TicTok()
+	{
+		start = std::chrono::steady_clock::now();
+	}
+	long long tok()
+	{
+		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+	}
+private:
+	std::chrono::steady_clock::time_point start;
+};
+
 
 
 // --------------------------------
@@ -45,9 +64,9 @@ cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R);
 // I/O
 // --------------------------------
 
-void loadImageLeft(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, std::string filepath);
+void loadImageLeft(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, const std::string& filepath);
 
-void loadImageRight(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, std::string filepath);
+void loadImageRight(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, const std::string& filepath);
 
 void loadGyro(std::string filename, std::vector<std::vector<double>>& time_gyros);
 // read time gyro txt file with format of timestamp, gx, gy, gz

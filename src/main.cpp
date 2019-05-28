@@ -1,9 +1,9 @@
 
-#include "opencv2/video/tracking.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/calib3d/calib3d.hpp"
+#include <opencv2/video.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/calib3d.hpp>
 
 #include <iostream>
 #include <ctype.h>
@@ -29,12 +29,11 @@
 
 using namespace std;
 
+
 int main(int argc, char **argv)
 {
 
-    // -----------------------------------------
-    // Load images and calibration parameters
-    // -----------------------------------------
+	// 载入图片和标定数据
     bool display_ground_truth = false;
     std::vector<Matrix> pose_matrix_gt;
     if(argc == 4)
@@ -43,7 +42,6 @@ int main(int argc, char **argv)
         // load ground truth pose
         string filename_pose = string(argv[3]);
         pose_matrix_gt = loadPoses(filename_pose);
-
     }
     if(argc < 3)
     {
@@ -51,11 +49,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // Sequence
+    // 数据集路径，目前只测试了kitti00
     string filepath = string(argv[1]);
     cout << "Filepath: " << filepath << endl;
 
-    // Camera calibration
+    // 相机参数
     string strSettingPath = string(argv[2]);
     cout << "Calibration Filepath: " << strSettingPath << endl;
 
@@ -68,6 +66,7 @@ int main(int argc, char **argv)
     float cy = fSettings["Camera.cy"];
     float bf = fSettings["Camera.bf"];
 
+	// 相机矩阵
     cv::Mat projMatrl = (cv::Mat_<float>(3, 4) << fx, 0., cx, 0., 0., fy, cy, 0., 0,  0., 1., 0.);
     cv::Mat projMatrr = (cv::Mat_<float>(3, 4) << fx, 0., cx, bf, 0., fy, cy, 0., 0,  0., 1., 0.);
     cout << "P_left: " << endl << projMatrl << endl;
@@ -92,7 +91,7 @@ int main(int argc, char **argv)
     int init_frame_id = 0;
 
     // ------------------------
-    // Load first images
+    // 读入第一帧图像
     // ------------------------
     cv::Mat imageLeft_t0_color,  imageLeft_t0;
     loadImageLeft(imageLeft_t0_color,  imageLeft_t0, init_frame_id, filepath);
@@ -102,19 +101,19 @@ int main(int argc, char **argv)
 
     float fps;
 
+	
     // -----------------------------------------
-    // Run visual odometry
+    // 运行视觉里程计
     // -----------------------------------------
     clock_t tic = clock();
     std::vector<FeaturePoint> oldFeaturePointsLeft;
     std::vector<FeaturePoint> currentFeaturePointsLeft;
 
-    for (int frame_id = init_frame_id+1; frame_id < 9000; frame_id++)
+    for (int frame_id = init_frame_id+1; frame_id <= 4540; frame_id++)
     {
-
         std::cout << std::endl << "frame_id " << frame_id << std::endl;
         // ------------
-        // Load images
+        // 读图
         // ------------
         cv::Mat imageLeft_t1_color,  imageLeft_t1;
         loadImageLeft(imageLeft_t1_color,  imageLeft_t1, frame_id, filepath);        
@@ -214,7 +213,10 @@ int main(int argc, char **argv)
         display(frame_id, trajectory, pose, pose_matrix_gt, fps, display_ground_truth);
 
     }
+	auto eval_time = chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	string s = std::ctime(&eval_time);
 
+	cv::imwrite("trajectory" + s + ".png", trajectory);
     return 0;
 }
 

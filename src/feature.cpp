@@ -1,5 +1,6 @@
 #include "feature.h"
 #include "bucket.h"
+#include "utils.h"
 
 void deleteUnmatchFeatures(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1, std::vector<uchar>& status)
 {
@@ -66,7 +67,7 @@ void deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<
   //getting rid of points for which the KLT tracking failed or those who have gone outside the frame
   for (int i = 0; i < ages.size(); ++i)
   {
-     ages[i] += 1;
+     ++ages[i];
   }
 
   int indexCorrection = 0;
@@ -108,7 +109,10 @@ void circularMatching(cv::Mat img_l_0, cv::Mat img_r_0, cv::Mat img_l_1, cv::Mat
   //this function automatically gets rid of points for which tracking fails
 
   std::vector<float> err;                    
-  cv::Size winSize=cv::Size(21,21);                                                                                             
+  cv::Size winSize=cv::Size(21,21);
+  //cv::Size winSizeStereo = cv::Size(31, 15);
+  cv::Size winSizeStereo = cv::Size(21, 21);
+
   cv::TermCriteria termcrit=cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01);
 
   std::vector<uchar> status0;
@@ -116,13 +120,13 @@ void circularMatching(cv::Mat img_l_0, cv::Mat img_r_0, cv::Mat img_l_1, cv::Mat
   std::vector<uchar> status2;
   std::vector<uchar> status3;
 
-  clock_t tic = clock();
+  TicTok tic;
   calcOpticalFlowPyrLK(img_l_0, img_r_0, points_l_0, points_r_0, status0, err, winSize, 3, termcrit, 0, 0.001);
-  calcOpticalFlowPyrLK(img_r_0, img_r_1, points_r_0, points_r_1, status1, err, winSize, 3, termcrit, 0, 0.001);
+  calcOpticalFlowPyrLK(img_r_0, img_r_1, points_r_0, points_r_1, status1, err, winSizeStereo, 3, termcrit, 0, 0.001);
   calcOpticalFlowPyrLK(img_r_1, img_l_1, points_r_1, points_l_1, status2, err, winSize, 3, termcrit, 0, 0.001);
-  calcOpticalFlowPyrLK(img_l_1, img_l_0, points_l_1, points_l_0_return, status3, err, winSize, 3, termcrit, 0, 0.001);
-  clock_t toc = clock();
-  std::cerr << "calcOpticalFlowPyrLK time: " << float(toc - tic)/CLOCKS_PER_SEC*1000 << "ms" << std::endl;
+  calcOpticalFlowPyrLK(img_l_1, img_l_0, points_l_1, points_l_0_return, status3, err, winSizeStereo, 3, termcrit, 0, 0.001);
+  
+  std::cerr << "calcOpticalFlowPyrLK time: " << tic.tok() << "ms" << std::endl;
 
 
   deleteUnmatchFeaturesCircle(points_l_0, points_r_0, points_r_1, points_l_1, points_l_0_return,
@@ -163,7 +167,6 @@ void bucketingFeatures(cv::Mat& image, FeatureSet& current_features, int bucket_
       buckets_nums_width_idx = current_features.points[i].x/bucket_size;
       buckets_idx = buckets_nums_height_idx*buckets_nums_width + buckets_nums_width_idx;
       Buckets[buckets_idx].add_feature(current_features.points[i], current_features.ages[i]);
-
     }
 
     // get features back from buckets
