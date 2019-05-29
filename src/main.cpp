@@ -33,7 +33,7 @@ using namespace std;
 int main(int argc, char **argv)
 {
 
-	// ÔØÈëÍ¼Æ¬ºÍ±ê¶¨Êı¾İ
+	// è½½å…¥å›¾ç‰‡å’Œæ ‡å®šæ•°æ®
     bool display_ground_truth = false;
     std::vector<Matrix> pose_matrix_gt;
     if(argc == 4)
@@ -49,28 +49,19 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // Êı¾İ¼¯Â·¾¶£¬Ä¿Ç°Ö»²âÊÔÁËkitti00
+    // æ•°æ®é›†è·¯å¾„ï¼Œç›®å‰åªæµ‹è¯•äº†kitti00
     string filepath = string(argv[1]);
     cout << "Filepath: " << filepath << endl;
 
-    // Ïà»ú²ÎÊı
+    // ç›¸æœºå‚æ•°
     string strSettingPath = string(argv[2]);
     cout << "Calibration Filepath: " << strSettingPath << endl;
 
-    cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
-
+    MVSO::MultiViewStereoOdometry mvso(strSettingPath);
     
-    float fx = fSettings["Camera.fx"];
-    float fy = fSettings["Camera.fy"];
-    float cx = fSettings["Camera.cx"];
-    float cy = fSettings["Camera.cy"];
-    float bf = fSettings["Camera.bf"];
-
-	// Ïà»ú¾ØÕó
-    cv::Mat projMatrl = (cv::Mat_<float>(3, 4) << fx, 0., cx, 0., 0., fy, cy, 0., 0,  0., 1., 0.);
-    cv::Mat projMatrr = (cv::Mat_<float>(3, 4) << fx, 0., cx, bf, 0., fy, cy, 0., 0,  0., 1., 0.);
-    cout << "P_left: " << endl << projMatrl << endl;
-    cout << "P_right: " << endl << projMatrr << endl;
+	// ç›¸æœºçŸ©é˜µ
+    cv::Mat projMatrl = mvso.camera_.getLeftProjectionMatrix();
+    cv::Mat projMatrr = mvso.camera_.getRightProjectionMatrix();
 
     // -----------------------------------------
     // Initialize variables
@@ -78,7 +69,6 @@ int main(int argc, char **argv)
     cv::Mat rotation = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat translation_stereo = cv::Mat::zeros(3, 1, CV_64F);
 
-    cv::Mat pose = cv::Mat::zeros(3, 1, CV_64F);
     cv::Mat Rpose = cv::Mat::eye(3, 3, CV_64F);
     
     cv::Mat frame_pose = cv::Mat::eye(4, 4, CV_64F);
@@ -91,7 +81,7 @@ int main(int argc, char **argv)
     int init_frame_id = 0;
 
     // ------------------------
-    // ¶ÁÈëµÚÒ»Ö¡Í¼Ïñ
+    // è¯»å…¥ç¬¬ä¸€å¸§å›¾åƒ
     // ------------------------
     cv::Mat imageLeft_t0_color,  imageLeft_t0;
     loadImageLeft(imageLeft_t0_color,  imageLeft_t0, init_frame_id, filepath);
@@ -103,7 +93,7 @@ int main(int argc, char **argv)
 
 	
     // -----------------------------------------
-    // ÔËĞĞÊÓ¾õÀï³Ì¼Æ
+    // è¿è¡Œè§†è§‰é‡Œç¨‹è®¡
     // -----------------------------------------
     clock_t tic = clock();
     std::vector<FeaturePoint> oldFeaturePointsLeft;
@@ -113,7 +103,7 @@ int main(int argc, char **argv)
     {
         std::cout << std::endl << "frame_id " << frame_id << std::endl;
         // ------------
-        // ¶ÁÍ¼
+        // è¯»å›¾
         // ------------
         cv::Mat imageLeft_t1_color,  imageLeft_t1;
         loadImageLeft(imageLeft_t1_color,  imageLeft_t1, frame_id, filepath);        

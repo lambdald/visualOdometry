@@ -26,7 +26,7 @@ class Frame
     void featureDetection(std::vector<cv::Point2f> &points);
 private:
 
-    void bucketingFeature();
+    void bucketingFeature(int bucket_size);
 
 
     const int frameId_;

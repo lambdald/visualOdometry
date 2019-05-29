@@ -1,7 +1,10 @@
 
+find_package( Eigen3 NO_MODULE )
+
 find_package( OpenCV REQUIRED )
 
 include_directories(${OpenCV_INCLUDE_DIRS} )
+include_directories(${EIGNE3_INCLUDE_DIRS})
 
 include_directories(evaluate)
 
@@ -15,6 +18,7 @@ add_library( Odometry
  "evaluate/matrix.cpp"
  "evaluate/evaluate_odometry.cpp"
  "evaluate/pointClouds.cpp"
+ "cameramodel.cpp"
  )
 
 

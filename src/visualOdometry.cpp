@@ -158,16 +158,18 @@ void trackingFrame2Frame(cv::Mat& projMatrl, cv::Mat& projMatrr,
                                                    projMatrl.at<float>(1, 0), projMatrl.at<float>(1, 1), projMatrl.at<float>(1, 2),
                                                    projMatrl.at<float>(1, 1), projMatrl.at<float>(1, 2), projMatrl.at<float>(1, 3));
 
-      int iterationsCount = 500;        // number of Ransac iterations.
+      int iterationsCount = 200;        // number of Ransac iterations.
       float reprojectionError = 2.0;    // maximum allowed distance to consider it an inlier.
       float confidence = 0.95;          // RANSAC successful confidence.
       bool useExtrinsicGuess = true;
-      int flags =cv::SOLVEPNP_ITERATIVE;
+      int flags =cv::SOLVEPNP_EPNP;
 
       cv::solvePnPRansac( points3D_t0, pointsLeft_t1, intrinsic_matrix, distCoeffs, rvec, translation,
                           useExtrinsicGuess, iterationsCount, reprojectionError, confidence,
                           inliers, flags );
 
+      cv::Rodrigues(rvec, rotation);
+      rotation = rotation.t();
       translation = -translation;
       // std::cout << "inliers size: " << inliers.size() << std::endl;
 
@@ -347,6 +349,73 @@ void visualOdometry(int current_frame_id, std::string filepath,
 
     imshow("vis ", vis );
     
+}
+
+namespace MVSO {
+
+MultiViewStereoOdometry::MultiViewStereoOdometry(const std::string &settingPath)
+{
+    // 相机参数
+    std::cout << "Calibration Filepath: " << settingPath << std::endl;
+
+    cv::FileStorage fSettings(settingPath, cv::FileStorage::READ);
+
+    float fx = fSettings["Camera.fx"];
+    float fy = fSettings["Camera.fy"];
+    float cx = fSettings["Camera.cx"];
+    float cy = fSettings["Camera.cy"];
+    float bf = fSettings["Camera.bf"];
+    camera_ = CameraModel(fx, fy, cx, cy, bf);
+}
+
+cv::Mat MultiViewStereoOdometry::grabImage(cv::Mat imgLeft, cv::Mat imgRight)
+{
+    currentFrame_ = std::make_shared<Frame>(imgLeft, imgRight);
+    tracking();
+}
+
+void MultiViewStereoOdometry::tracking()
+{
+    std::vector<cv::Point2f> ptsleft_0, ptsright_0, ptsright_1, ptsleft_1;
+//    matchingFeatures(lastFrame_->getLeftImg(), lastFrame_->getRightImg(),
+//                     currentFrame_->getLeftImg(), currentFrame_->getRightImg(),
+//                     ptsleft_0, ptsright_0, ptsleft_1, ptsright_1);
+}
+
+void MultiViewStereoOdometry::matchingFeatures(cv::Mat &imageLeft_t0, cv::Mat &imageRight_t0, cv::Mat &imageLeft_t1, cv::Mat &imageRight_t1, std::vector<cv::Point2f> &pointsLeft_t0, std::vector<cv::Point2f> &pointsRight_t0, std::vector<cv::Point2f> &pointsLeft_t1, std::vector<cv::Point2f> &pointsRight_t1)
+{
+//    // ----------------------------
+//    // Feature detection using FAST
+//    // ----------------------------
+//    std::vector<cv::Point2f>  pointsLeftReturn_t0;   // feature points to check cicular mathcing validation
+
+
+//    lastFrame_->prepareFeature();
+
+//    // --------------------------------------------------------
+//    // Feature tracking using KLT tracker, bucketing and circular matching
+//    // --------------------------------------------------------
+//    int bucket_size = 50;
+//    int features_per_bucket = 4;
+//    bucketingFeatures(imageLeft_t0, currentVOFeatures, bucket_size, features_per_bucket);
+
+//    pointsLeft_t0 = currentVOFeatures.points;
+
+//    circularMatching(imageLeft_t0, imageRight_t0, imageLeft_t1, imageRight_t1,
+//                     pointsLeft_t0, pointsRight_t0, pointsLeft_t1, pointsRight_t1, pointsLeftReturn_t0, currentVOFeatures);
+
+//    std::vector<bool> status;
+//    checkValidMatch(pointsLeft_t0, pointsLeftReturn_t0, status, 0);
+
+//    removeInvalidPoints(pointsLeft_t0, status);
+//    removeInvalidPoints(pointsLeft_t1, status);
+//    removeInvalidPoints(pointsRight_t0, status);
+//    removeInvalidPoints(pointsRight_t1, status);
+
+//    currentVOFeatures.points = pointsLeft_t1;
+
+}
+
 }
 
 
