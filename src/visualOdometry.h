@@ -61,7 +61,10 @@ void displayTracking(cv::Mat& imageLeft_t1,
                      std::vector<cv::Point2f>&  pointsLeft_t0,
                      std::vector<cv::Point2f>&  pointsLeft_t1);
 
-
+void displayTracking(cv::Mat& imageLeft_t1,
+	std::vector<cv::Point2f>&  pointsLeft_t0,
+	std::vector<cv::Point2f>&  pointsLeft_t1,
+	cv::Point2f epipoint);
 
 namespace MVSO
 {
@@ -72,7 +75,7 @@ namespace MVSO
         MultiViewStereoOdometry(const std::string& settingPath);
 
         cv::Mat grabImage(cv::Mat imgLeft, cv::Mat imgRight);
-        void tracking();
+       
 
         void matchingFeatures(cv::Mat &imageLeft_t0,
                               cv::Mat &imageRight_t0,
@@ -83,9 +86,33 @@ namespace MVSO
                               std::vector<cv::Point2f> &pointsLeft_t1,
                               std::vector<cv::Point2f> &pointsRight_t1);
 
-        CameraModel camera_;
+		void circularMatching(std::vector<cv::Point2f> &pointsLeft_t0,
+			std::vector<cv::Point2f> &pointsRight_t0,
+			std::vector<cv::Point2f> &pointsLeft_t1,
+			std::vector<cv::Point2f> &pointsRight_t1,
+			std::vector<cv::Point2f> &pointsLeft_t0_return);
 
+
+		void deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1,
+			std::vector<cv::Point2f>& points2, std::vector<cv::Point2f>& points3,
+			std::vector<cv::Point2f>& points0_return,
+			std::vector<uchar>& status0, std::vector<uchar>& status1,
+			std::vector<uchar>& status2, std::vector<uchar>& status3);
+
+		void trackingFrame2Frame(
+			std::vector<cv::Point2f>&  pointsLeft_t0,
+			std::vector<cv::Point2f>&  pointsLeft_t1,
+			cv::Mat& points3D_t0);
+
+		//void trackingFrame2FrameICP();
+
+
+
+        CameraModel camera_;
         std::shared_ptr<Frame> lastFrame_, currentFrame_;
+		cv::Mat pose_;
+
+		cv::Mat tracking();
     };
 }
 

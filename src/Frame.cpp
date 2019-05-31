@@ -56,52 +56,62 @@ void Frame::featureDetection(std::vector<cv::Point2f>& points)
     cv::KeyPoint::convert(keypoints, points, std::vector<int>());
 }
 
+std::vector<cv::Point2f> Frame::getKeypoints()
+{
+	return keyPoints_;
+}
+
 void Frame::bucketingFeature(int bucket_size)
 {
-
+	int ageThresh = 10;
     // TODO
     int bucketWidth = grayImgLeft_.cols/bucketSize + 1;
     int bucketHeight = grayImgLeft_.rows/bucketSize + 1;
-    std::vector<std::vector< std::vector<std::tuple<cv::Point2f, int>> >> buckets(bucketHeight, std::vector< std::vector<std::tuple<cv::Point2f, int>> >());
+    std::vector<std::vector< std::vector<int> >> buckets(bucketHeight, std::vector< std::vector<int> >(bucketWidth));
+	int count = 0;
     for(int i = 0; i < keyPoints_.size(); i++)
     {
         cv::Point2f& pt = keyPoints_[i];
         int age = pointAges_[i];
-        int c = std::floor(pt.x/bucketWidth);
-        int r = std::floor(pt.y/bucketHeight);
-        if(buckets[r][c].size() < bucket_size)
-            buckets[r][c].push_back(std::make_tuple(pt, age));
+        int c = std::floor(pt.x/ bucketSize);
+        int r = std::floor(pt.y/ bucketSize);
+		if (buckets[r][c].size() < bucket_size)
+		{
+			buckets[r][c].push_back(i);
+			count++;
+		}
         else
         {
             for(int x = 0; x < buckets[r][c].size(); x++)
             {
-                if(std::get<1>(buckets[r][c][x]) > 10)
+				int age2 = pointAges_[buckets[r][c][x]];
+				if (abs(age - ageThresh) < abs(age2 - ageThresh))
+				{
+					buckets[r][c][x] = i;
+					break;
+				}
             }
         }
     }
 
-    keyPoints_.clear();
-    pointAges_.clear();
+	std::vector<cv::Point2f> newKeypoints;
+	std::vector<int> newAges;
+	newKeypoints.reserve(count);
+	newAges.reserve(count);
     for(int r = 0; r < bucketHeight; r++)
     {
-        for(int c = 0; c < bucketHeight; c++)
+        for(int c = 0; c < bucketWidth; c++)
         {
-            auto& bucket = buckets[r][c];
-            cv::Point2f bestPt1, bestPt2;
-            int bestAge1 = -1, bestAge2 = -1;
-            for(auto& kpt: bucket)
-            {
-                auto pt = std::get<0>(kpt);
-                auto age = std::get<1>(kpt);
-                if(age < 10)
-                {
-                    if(age > )
-                }
-
-            }
+			for (int i : buckets[r][c])
+			{
+				newKeypoints.push_back(keyPoints_[i]);
+				newAges.push_back(pointAges_[i]);
+			}
         }
     }
 
+	keyPoints_ = newKeypoints;
+	pointAges_ = newAges;
 }
 
 }

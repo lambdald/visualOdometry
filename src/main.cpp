@@ -57,6 +57,9 @@ int main(int argc, char **argv)
     string strSettingPath = string(argv[2]);
     cout << "Calibration Filepath: " << strSettingPath << endl;
 
+
+
+
     MVSO::MultiViewStereoOdometry mvso(strSettingPath);
     
 	// 相机矩阵
@@ -91,7 +94,7 @@ int main(int argc, char **argv)
 
     float fps;
 
-	
+	mvso.grabImage(imageLeft_t0_color, imageRight_t0_color);
     // -----------------------------------------
     // 运行视觉里程计
     // -----------------------------------------
@@ -110,6 +113,14 @@ int main(int argc, char **argv)
         cv::Mat imageRight_t1_color, imageRight_t1;  
         loadImageRight(imageRight_t1_color, imageRight_t1, frame_id, filepath);
 
+
+		cv::Mat pose_mvso;
+		pose_mvso = mvso.grabImage(imageLeft_t1, imageRight_t1);
+		cv::Mat rotation_mvso, translation_mvso;
+		rotation_mvso = pose_mvso.colRange(0, 3);
+		translation_mvso = pose_mvso.col(3);
+
+		/*
         std::vector<cv::Point2f> oldPointsLeft_t0 = currentVOFeatures.points;
 
 
@@ -156,30 +167,37 @@ int main(int argc, char **argv)
         // Tracking transfomation
         // ---------------------
         trackingFrame2Frame(projMatrl, projMatrr, pointsLeft_t0, pointsLeft_t1, points3D_t0, rotation, translation_stereo);
-        displayTracking(imageLeft_t1, pointsLeft_t0, pointsLeft_t1);
+		*/
 
 
-        points4D = points4D_t0;
-        frame_pose.convertTo(frame_pose32, CV_32F);
-        points4D = frame_pose32 * points4D;
-        cv::convertPointsFromHomogeneous(points4D.t(), points3D);
+		rotation = rotation_mvso.clone();
+		translation_stereo = translation_mvso.clone();
+
+        //displayTracking(imageLeft_t1, pointsLeft_t0, pointsLeft_t1);
+
+
+        //points4D = points4D_t0;
+        //frame_pose.convertTo(frame_pose32, CV_32F);
+        //points4D = frame_pose32 * points4D;
+        //cv::convertPointsFromHomogeneous(points4D.t(), points3D);
 
         // ------------------------------------------------
         // Intergrating and display
         // ------------------------------------------------
+
+
 
         cv::Vec3f rotation_euler = rotationMatrixToEulerAngles(rotation);
         // std::cout << "rotation: " << rotation_euler << std::endl;
         // std::cout << "translation: " << translation_stereo.t() << std::endl;
 
         cv::Mat rigid_body_transformation;
-
-        if(abs(rotation_euler[1])<0.1 && abs(rotation_euler[0])<0.1 && abs(rotation_euler[2])<0.1)
+		//integrateOdometryStereo(frame_id, rigid_body_transformation, frame_pose, rotation, translation_stereo);
+        
+		if(abs(rotation_euler[1])<0.1 && abs(rotation_euler[0])<0.1 && abs(rotation_euler[2])<0.1)
         {
-            integrateOdometryStereo(frame_id, rigid_body_transformation, frame_pose, rotation, translation_stereo);
-
+			integrateOdometryStereo(frame_id, rigid_body_transformation, frame_pose, rotation, translation_stereo);
         } else {
-
             std::cout << "Too large rotation"  << std::endl;
         }
 
@@ -204,9 +222,14 @@ int main(int argc, char **argv)
 
     }
 	auto eval_time = chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	string s = std::ctime(&eval_time);
-
-	cv::imwrite("trajectory" + s + ".png", trajectory);
+	string time = std::ctime(&eval_time);
+	time.erase(time.length() - 1);
+	for (char& c : time)
+		if (c == ':')
+			c = '~';
+	string filename = cv::format("trajectory%s.png", time.c_str());
+	cout << "filename: " << filename << endl;
+	cv::imwrite(filename, trajectory);
     return 0;
 }
 

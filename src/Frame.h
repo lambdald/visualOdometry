@@ -12,10 +12,11 @@ namespace MVSO {
 
 class Frame
 {
+	friend class MultiViewStereoOdometry;
   public:
 
     static int FRAME_COUNT;
-    const int bucketSize = 5;
+    const int bucketSize = 15;
 
     Frame() = default;
     Frame(cv::Mat imgLeft, cv::Mat imgRight);
@@ -24,10 +25,10 @@ class Frame
     cv::Mat getRightImg();
     void prepareFeature();
     void featureDetection(std::vector<cv::Point2f> &points);
-private:
+	std::vector<cv::Point2f> getKeypoints();
 
     void bucketingFeature(int bucket_size);
-
+private:
 
     const int frameId_;
     cv::Mat grayImgLeft_;
