@@ -23,6 +23,7 @@ add_library( Odometry
  "cameramodel.cpp"
  "PoseEstimator.cpp"
  "PoseOptimizer.cpp"
+ "Map.cpp"
  )
 
 

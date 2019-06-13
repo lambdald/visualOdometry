@@ -1,5 +1,5 @@
 #include "Frame.h"
-
+#include "utils.h"
 
 namespace MVSO {
 
@@ -42,15 +42,15 @@ void Frame::prepareFeature()
         std::vector<cv::Point2f>  points_new;
         featureDetection(points_new);
         keyPoints_.insert(keyPoints_.end(), points_new.begin(), points_new.end());
-        std::vector<int>  ages_new(points_new.size(), 0);
-        pointAges_.insert(pointAges_.end(), ages_new.begin(), ages_new.end());
+		pointAges_.resize(keyPoints_.size(), -1);
+		baseKeyPointIndex_.resize(keyPoints_.size(), -1);
     }
 }
 
 void Frame::featureDetection(std::vector<cv::Point2f>& points)
 {
     std::vector<cv::KeyPoint> keypoints;
-    int fast_threshold = 20;
+    int fast_threshold = 23;
     bool nonmaxSuppression = true;
     cv::FAST(grayImgLeft_, keypoints, fast_threshold, nonmaxSuppression);
     cv::KeyPoint::convert(keypoints, points, std::vector<int>());
@@ -59,6 +59,11 @@ void Frame::featureDetection(std::vector<cv::Point2f>& points)
 std::vector<cv::Point2f> Frame::getKeypoints()
 {
 	return keyPoints_;
+}
+
+std::vector<cv::Point3f> Frame::getKeypoints3D()
+{
+	return keypoints3D_;
 }
 
 void Frame::bucketingFeature(int bucket_size)
@@ -96,8 +101,10 @@ void Frame::bucketingFeature(int bucket_size)
 
 	std::vector<cv::Point2f> newKeypoints;
 	std::vector<int> newAges;
+	std::vector<int> newKeypointIndex;
 	newKeypoints.reserve(count);
 	newAges.reserve(count);
+	newKeypointIndex.reserve(count);
     for(int r = 0; r < bucketHeight; r++)
     {
         for(int c = 0; c < bucketWidth; c++)
@@ -106,12 +113,48 @@ void Frame::bucketingFeature(int bucket_size)
 			{
 				newKeypoints.push_back(keyPoints_[i]);
 				newAges.push_back(pointAges_[i]);
+				newKeypointIndex.push_back(baseKeyPointIndex_[i]);
 			}
         }
     }
 
 	keyPoints_ = newKeypoints;
 	pointAges_ = newAges;
+	baseKeyPointIndex_ = newKeypointIndex;
+}
+
+void Frame::removeInvalidNewFeature(std::vector<bool>& status)
+{
+	for (int i = 0; i < status.size(); i++)
+	{
+		if (pointAges_[i] != -1)
+		{
+			status[i] = true;
+		}
+	}
+
+
+
+	removeInvalidElement(keyPoints_, status);
+	removeInvalidElement(pointAges_, status);
+	removeInvalidElement(baseKeyPointIndex_, status);
+}
+
+void Frame::addStereoMatch(std::vector<cv::Point2f>& keypoints, std::vector<cv::Point3f>& keypoints3D)
+{
+	keyPoints_ = keypoints;
+	keypoints3D_ = keypoints3D;
+}
+
+void Frame::addStereoMatch(std::vector<cv::Point2f>& keypoints, cv::Mat & keypoints3D)
+{
+	keyPoints_ = keypoints;
+	keypoints3D_ = std::vector<cv::Point3f>(keypoints3D);
+}
+
+void Frame::setInterframeMatching(std::vector<int>& matchId)
+{
+	baseKeyPointIndex_ = matchId;
 }
 
 }

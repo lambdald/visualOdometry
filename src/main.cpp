@@ -57,7 +57,7 @@ int main(int argc, char **argv)
     string strSettingPath = string(argv[2]);
     cout << "Calibration Filepath: " << strSettingPath << endl;
 
-
+	std::vector<cv::Mat> pose_results;
 
 
     MVSO::MultiViewStereoOdometry mvso(strSettingPath);
@@ -92,9 +92,11 @@ int main(int argc, char **argv)
     cv::Mat imageRight_t0_color, imageRight_t0;  
     loadImageRight(imageRight_t0_color, imageRight_t0, init_frame_id, filepath);
 
+
     float fps;
 
-	mvso.grabImage(imageLeft_t0_color, imageRight_t0_color);
+	pose_results.push_back(mvso.grabImage(imageLeft_t0_color, imageRight_t0_color));
+	
     // -----------------------------------------
     // 运行视觉里程计
     // -----------------------------------------
@@ -119,72 +121,12 @@ int main(int argc, char **argv)
 		cv::Mat rotation_mvso, translation_mvso;
 		rotation_mvso = pose_mvso.colRange(0, 3);
 		translation_mvso = pose_mvso.col(3);
+		pose_results.push_back(pose_mvso);
 
-		/*
-        std::vector<cv::Point2f> oldPointsLeft_t0 = currentVOFeatures.points;
-
-
-        std::vector<cv::Point2f> pointsLeft_t0, pointsRight_t0, pointsLeft_t1, pointsRight_t1;  
-
-        matchingFeatures( imageLeft_t0, imageRight_t0,
-                          imageLeft_t1, imageRight_t1, 
-                          currentVOFeatures,
-                          pointsLeft_t0, 
-                          pointsRight_t0, 
-                          pointsLeft_t1, 
-                          pointsRight_t1);  
-
-        imageLeft_t0 = imageLeft_t1;
-        imageRight_t0 = imageRight_t1;
-
-        std::vector<cv::Point2f>& currentPointsLeft_t0 = pointsLeft_t0;
-        std::vector<cv::Point2f>& currentPointsLeft_t1 = pointsLeft_t1;
-
-        // std::cout << "oldPointsLeft_t0 size : " << oldPointsLeft_t0.size() << std::endl;
-        // std::cout << "currentFramePointsLeft size : " << currentPointsLeft_t0.size() << std::endl;
-        
-        std::vector<cv::Point2f> newPoints;
-        std::vector<bool> valid; // valid new points are ture
-
-        // ---------------------
-        // Triangulate 3D Points
-        // ---------------------
-        cv::Mat points3D_t0, points4D_t0;
-        cv::triangulatePoints( projMatrl,  projMatrr,  pointsLeft_t0,  pointsRight_t0,  points4D_t0);
-        cv::convertPointsFromHomogeneous(points4D_t0.t(), points3D_t0);
-        // std::cout << "points4D_t0 size : " << points4D_t0.size() << std::endl;
-
-        cv::Mat points3D_t1, points4D_t1;
-        // std::cout << "pointsLeft_t1 size : " << pointsLeft_t1.size() << std::endl;
-        // std::cout << "pointsRight_t1 size : " << pointsRight_t1.size() << std::endl;
-
-        cv::triangulatePoints( projMatrl,  projMatrr,  pointsLeft_t1,  pointsRight_t1,  points4D_t1);
-        cv::convertPointsFromHomogeneous(points4D_t1.t(), points3D_t1);
-
-        // std::cout << "points4D_t1 size : " << points4D_t1.size() << std::endl;
-
-        // ---------------------
-        // Tracking transfomation
-        // ---------------------
-        trackingFrame2Frame(projMatrl, projMatrr, pointsLeft_t0, pointsLeft_t1, points3D_t0, rotation, translation_stereo);
-		*/
 
 
 		rotation = rotation_mvso.clone();
 		translation_stereo = translation_mvso.clone();
-
-        //displayTracking(imageLeft_t1, pointsLeft_t0, pointsLeft_t1);
-
-
-        //points4D = points4D_t0;
-        //frame_pose.convertTo(frame_pose32, CV_32F);
-        //points4D = frame_pose32 * points4D;
-        //cv::convertPointsFromHomogeneous(points4D.t(), points3D);
-
-        // ------------------------------------------------
-        // Intergrating and display
-        // ------------------------------------------------
-
 
 
         cv::Vec3f rotation_euler = rotationMatrixToEulerAngles(rotation);
@@ -194,7 +136,7 @@ int main(int argc, char **argv)
         cv::Mat rigid_body_transformation;
 		//integrateOdometryStereo(frame_id, rigid_body_transformation, frame_pose, rotation, translation_stereo);
         
-		if(abs(rotation_euler[1])<0.1 && abs(rotation_euler[0])<0.1 && abs(rotation_euler[2])<0.1)
+		if(abs(rotation_euler[1])<0.2 && abs(rotation_euler[0])<0.2 && abs(rotation_euler[2])<0.2)
         {
 			integrateOdometryStereo(frame_id, rigid_body_transformation, frame_pose, rotation, translation_stereo);
         } else {

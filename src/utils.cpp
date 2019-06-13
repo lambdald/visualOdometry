@@ -186,3 +186,4 @@ void loadImageRight(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, con
     image_color = cv::imread(filename, cv::IMREAD_COLOR);
     cvtColor(image_color, image_gary, cv::COLOR_BGR2GRAY);
 }
+

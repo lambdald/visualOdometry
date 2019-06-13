@@ -71,4 +71,21 @@ void loadImageRight(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, con
 void loadGyro(std::string filename, std::vector<std::vector<double>>& time_gyros);
 // read time gyro txt file with format of timestamp, gx, gy, gz
 
+
+template<class T>
+void removeInvalidElement(std::vector<T>& items, const std::vector<bool>& status)
+{
+	int index = 0;
+	for (int i = 0; i < status.size(); i++)
+	{
+		if (status[i] == false)
+		{
+			items.erase(items.begin() + index);
+		}
+		else
+		{
+			index++;
+		}
+	}
+}
 #endif

@@ -51,11 +51,7 @@ void checkValidMatch(std::vector<cv::Point2f>& points, std::vector<cv::Point2f>&
 
         if(offset > threshold)
         {
-            status.push_back(false);
-        }
-        else
-        {
-            status.push_back(true);
+            status[i] = false;
         }
     }
 }
@@ -76,22 +72,7 @@ void removeInvalidPoints(std::vector<cv::Point2f>& points, const std::vector<boo
     }
 }
 
-template<class T>
-void removeInvalidElement(std::vector<T>& items, const std::vector<bool>& status)
-{
-	int index = 0;
-	for (int i = 0; i < status.size(); i++)
-	{
-		if (status[i] == false)
-		{
-			items.erase(items.begin() + index);
-		}
-		else
-		{
-			index++;
-		}
-	}
-}
+
 
 
 
@@ -423,85 +404,75 @@ MultiViewStereoOdometry::MultiViewStereoOdometry(const std::string &settingPath)
 
 cv::Mat MultiViewStereoOdometry::grabImage(cv::Mat imgLeft, cv::Mat imgRight)
 {
+	lastFrame_ = currentFrame_;
     currentFrame_ = std::make_shared<Frame>(imgLeft, imgRight);
 	if (currentFrame_->frameId_ == 0)
 	{
-		lastFrame_ = currentFrame_;
-		return cv::Mat();
+		pose_ = (cv::Mat_<double>(3, 4) << 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+		return pose_.clone();
 	}
     tracking();
+	map_->addNewFrame(currentFrame_);
 	return pose_;
 }
 
 cv::Mat MultiViewStereoOdometry::tracking()
 {
-    std::vector<cv::Point2f> ptsleft_0, ptsright_0, ptsright_1, ptsleft_1;
-    matchingFeatures(lastFrame_->getLeftImg(), lastFrame_->getRightImg(),
-                     currentFrame_->getLeftImg(), currentFrame_->getRightImg(),
-                     ptsleft_0, ptsright_0, ptsleft_1, ptsright_1);
+	// 特征匹配+三角化
 
-	std::vector<cv::Point2f>& currentPointsLeft_t0 = ptsleft_0;
-	std::vector<cv::Point2f>& currentPointsLeft_t1 = ptsleft_1;
+	std::vector<cv::Point2f> lastFrameKpts;
+	matchingFeatures2(lastFrame_.get(), currentFrame_.get(), lastFrameKpts);
 
-	// std::cout << "oldPointsLeft_t0 size : " << oldPointsLeft_t0.size() << std::endl;
-	// std::cout << "currentFramePointsLeft size : " << currentPointsLeft_t0.size() << std::endl;
 
-	std::vector<cv::Point2f> newPoints;
-	std::vector<bool> valid; // valid new points are ture
+	std::vector<cv::Point2f> currentFrameKpts = currentFrame_->getKeypoints();
+	std::vector<cv::Point3f> currentFrameKpts3D = currentFrame_->getKeypoints3D();
+
+	std::cout << "lastFrameKpts size: " << lastFrameKpts.size() << std::endl;
+	std::cout << "currnetFrameKpts size: " << currentFrameKpts.size() << std::endl;
+	std::cout << "currnetFrameKpts3D size: " << currentFrameKpts3D.size() << std::endl;
+
+
+	std::cout << "track " << lastFrame_->frameId_ << "->" << currentFrame_->frameId_ << std::endl;
+	// 位姿估计
+
+	int staticCount = 0;
+	float diff = 0.0;
+	for (int i = 0; i < lastFrameKpts.size(); i++)
+	{
+		auto& p0 = lastFrameKpts[i];
+		auto& p1 = currentFrameKpts[i];
+		float tdiff = abs(p0.x - p1.x) + abs(p0.y - p0.y);
+		if (tdiff < 1.0)
+		{
+			staticCount++;
+		}
+		diff += tdiff;
+	}
+	diff /= lastFrameKpts.size();
+	if (diff < 2.0)
+	{
+		pose_ = (cv::Mat_<double>(3, 4) << 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+		displayTracking(currentFrame_->getLeftImg(), lastFrameKpts, currentFrameKpts, cv::Point2f(currentFrame_->getLeftImg().cols/2, currentFrame_->getLeftImg().rows/2));
+		return pose_.clone();
+	}
+
 
 	// ---------------------
-	// Triangulate 3D Points
-	// ---------------------
-	cv::Mat points3D_t0, points4D_t0;
-	cv::triangulatePoints(
-		camera_.getLeftProjectionMatrix(),
-		camera_.getRightProjectionMatrix(),
-		ptsleft_0, ptsright_0, points4D_t0);
-
-	cv::convertPointsFromHomogeneous(points4D_t0.t(), points3D_t0);
-
-
-	std::vector<cv::Point3f> points3d_t0(points3D_t0);
-
-
-	// std::cout << "points4D_t0 size : " << points4D_t0.size() << std::endl;
-
-	cv::Mat points3D_t1, points4D_t1;
-	// std::cout << "pointsLeft_t1 size : " << pointsLeft_t1.size() << std::endl;
-	// std::cout << "pointsRight_t1 size : " << pointsRight_t1.size() << std::endl;
-
-	cv::triangulatePoints(
-		camera_.getLeftProjectionMatrix(),
-		camera_.getRightProjectionMatrix(),
-		ptsleft_1, ptsright_1, points4D_t1);
-	cv::convertPointsFromHomogeneous(points4D_t1.t(), points3D_t1);
-
-
-	std::vector<cv::Point3f> points3d_t1(points3D_t1);
-
-
-	// std::cout << "points4D_t1 size : " << points4D_t1.size() << std::endl;
-
-	// ---------------------
-	// Tracking transfomation
+	// estimate pose.
 	// ---------------------
 	PoseEstimator estimator(camera_);
-	pose_ = estimator.estimatePose(ptsleft_0, ptsleft_1, points3d_t0);
 
-	//pose_ = estimator.estimatePose(ptsleft_1, ptsleft_0, points3d_t1);
-	//{
-	//	cv::Mat r = pose_.colRange(0, 3);
-	//	cv::Mat t = pose_.col(3);
-	//	r = r.t();
-	//	t = -r * t;
-	//}
+	// 2D-3D
+	pose_ = estimator.estimatePose(currentFrameKpts, lastFrameKpts, currentFrameKpts3D);
+	{
+		cv::Mat r = pose_.colRange(0, 3);
+		cv::Mat t = pose_.col(3);
+		r = r.t();
+		t = -r * t;
+	}
 
-
+	// 3D-3D
 	//pose_ = estimator.estimatePose(ptsleft_0, ptsleft_1, points3d_t0, points3d_t1);
-
-
-
-	//trackingFrame2Frame(ptsleft_0, ptsleft_1, points3D_t0);
 
 
 	cv::Mat r = pose_.colRange(0, 3);
@@ -515,50 +486,67 @@ cv::Mat MultiViewStereoOdometry::tracking()
 	epipoint.x = camera_.fx_*camera_center.x / camera_center.z + camera_.cx_;
 	epipoint.y = camera_.fy_*camera_center.y / camera_center.z + camera_.cy_;
 
-	displayTracking(currentFrame_->getLeftImg(), ptsleft_0, ptsleft_1, epipoint);
+	displayTracking(currentFrame_->getLeftImg(), lastFrameKpts, currentFrameKpts, epipoint);
 
 	return pose_.clone();
 }
 
-void MultiViewStereoOdometry::matchingFeatures(
-	cv::Mat &imageLeft_t0,
-	cv::Mat &imageRight_t0,
-	cv::Mat &imageLeft_t1,
-	cv::Mat &imageRight_t1,
-	std::vector<cv::Point2f> &pointsLeft_t0,
-	std::vector<cv::Point2f> &pointsRight_t0,
-	std::vector<cv::Point2f> &pointsLeft_t1,
-	std::vector<cv::Point2f> &pointsRight_t1)
+void MultiViewStereoOdometry::matchingFeatures2(Frame * lastFrame, Frame * currentFrame, std::vector<cv::Point2f>& lasfFrameKpts)
 {
-    // ----------------------------
-    // Feature detection using FAST
-    // ----------------------------
-    std::vector<cv::Point2f>  pointsLeftReturn_t0;   // feature points to check cicular mathcing validation
 
-    int features_per_bucket = 1;
 
-    lastFrame_->prepareFeature();
-	lastFrame_->bucketingFeature(features_per_bucket);
-    // --------------------------------------------------------
-    // Feature tracking using KLT tracker, bucketing and circular matching
-    // --------------------------------------------------------
+	std::vector<cv::Point2f>  pointsLeftReturn_t0;   // feature points to check cicular mathcing validation
 
-    pointsLeft_t0 = lastFrame_->getKeypoints();
+	int features_per_bucket = 1;
 
-    circularMatching(pointsLeft_t0, pointsRight_t0, pointsLeft_t1, pointsRight_t1, pointsLeftReturn_t0);
+	lastFrame->prepareFeature();
+	lastFrame->bucketingFeature(features_per_bucket);
+	// --------------------------------------------------------
+	// Feature tracking using KLT tracker, bucketing and circular matching
+	// --------------------------------------------------------
 
-    std::vector<bool> status;
-    checkValidMatch(pointsLeft_t0, pointsLeftReturn_t0, status, 0);
+	lasfFrameKpts = lastFrame->getKeypoints();
+	std::vector<cv::Point2f> pointsRight_t0, pointsLeft_t1, pointsRight_t1;
 
-    removeInvalidPoints(pointsLeft_t0, status);
-    removeInvalidPoints(pointsLeft_t1, status);
-    removeInvalidPoints(pointsRight_t0, status);
-    removeInvalidPoints(pointsRight_t1, status);
 
-	removeInvalidElement(lastFrame_->pointAges_, status);
+	std::vector<bool> matchStatus;
+	circularMatching(lasfFrameKpts, pointsRight_t0, pointsLeft_t1, pointsRight_t1, matchStatus);
+	std::vector<bool> featureReserved = matchStatus;
+	lastFrame->removeInvalidNewFeature(featureReserved);
+	removeInvalidElement(lasfFrameKpts, matchStatus);
+	removeInvalidElement(pointsRight_t0, matchStatus);
+	removeInvalidElement(pointsLeft_t1, matchStatus);
+	removeInvalidElement(pointsRight_t1, matchStatus);
 
-	lastFrame_ = currentFrame_;
+	
+	std::vector<int> matchInv(lasfFrameKpts.size());
+	int zero0 = 0, zero1 = 0;
+	for (int i = 0; i < matchStatus.size(); i++)
+	{
+		if (!featureReserved[i])
+			zero0++;
+		if (!matchStatus[i])
+			zero1++;
+		if (matchStatus[i] && featureReserved[i])
+		{
+			int id0 = i - zero0;
+			int id1 = i - zero1;
+			matchInv[id1] = id0;
+		}
+	}
+	
+	// 只三角化t1时刻的特征点
+	cv::Mat points3D_t1, points4D_t1;
 
+	cv::triangulatePoints(
+		camera_.getLeftProjectionMatrix(),
+		camera_.getRightProjectionMatrix(),
+		pointsLeft_t1, pointsRight_t1, points4D_t1);
+	cv::convertPointsFromHomogeneous(points4D_t1.t(), points3D_t1);
+	//std::vector<cv::Point3f> points3d_t1(points3D_t1);
+	// 存到当前帧
+	currentFrame->addStereoMatch(pointsLeft_t1, points3D_t1);
+	currentFrame->setInterframeMatching(matchInv);
 }
 
 void MultiViewStereoOdometry::circularMatching(
@@ -566,15 +554,14 @@ void MultiViewStereoOdometry::circularMatching(
 	std::vector<cv::Point2f>& pointsRight_t0,
 	std::vector<cv::Point2f>& pointsLeft_t1,
 	std::vector<cv::Point2f>& pointsRight_t1,
-	std::vector<cv::Point2f>& pointsLeft_t0_return)
+	std::vector<bool>& matchStatus)
 {
-
 	//this function automatically gets rid of points for which tracking fails
 
 	std::vector<float> err;
 	cv::Size winSize = cv::Size(21, 21);
 	//cv::Size winSizeStereo = cv::Size(31, 15);
-	cv::Size winSizeStereo = cv::Size(21, 21);
+	cv::Size winSizeStereo = cv::Size(31, 21);
 
 	cv::TermCriteria termcrit = cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01);
 
@@ -582,6 +569,7 @@ void MultiViewStereoOdometry::circularMatching(
 	std::vector<uchar> status1;
 	std::vector<uchar> status2;
 	std::vector<uchar> status3;
+	std::vector<cv::Point2f> pointsLeft_t0_return;
 
 	TicTok tic;
 	calcOpticalFlowPyrLK(lastFrame_->getLeftImg(), lastFrame_->getRightImg(), pointsLeft_t0, pointsRight_t0, status0, err, winSize, 3, termcrit, 0, 0.001);
@@ -591,14 +579,22 @@ void MultiViewStereoOdometry::circularMatching(
 
 	std::cerr << "calcOpticalFlowPyrLK time: " << tic.tok() << "ms" << std::endl;
 
+	matchStatus.resize(pointsLeft_t0.size(), false);
 
-	deleteUnmatchFeaturesCircle(pointsLeft_t0, pointsRight_t0, pointsRight_t1, pointsLeft_t1, pointsLeft_t0_return,
-		status0, status1, status2, status3);
+	deleteUnmatchFeaturesCircle2(pointsLeft_t0, pointsRight_t0, pointsRight_t1, pointsLeft_t1, pointsLeft_t0_return,
+		status0, status1, status2, status3,
+		matchStatus);
 
-
+	checkValidMatch(pointsLeft_t0, pointsLeft_t0_return, matchStatus, 0.1);
 }
 
-void MultiViewStereoOdometry::deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, std::vector<cv::Point2f>& points3, std::vector<cv::Point2f>& points0_return, std::vector<uchar>& status0, std::vector<uchar>& status1, std::vector<uchar>& status2, std::vector<uchar>& status3)
+
+void MultiViewStereoOdometry::deleteUnmatchFeaturesCircle(
+	std::vector<cv::Point2f>& points0,
+	std::vector<cv::Point2f>& points1,
+	std::vector<cv::Point2f>& points2,
+ std::vector<cv::Point2f>& points3,
+	std::vector<cv::Point2f>& points0_return, std::vector<uchar>& status0, std::vector<uchar>& status1, std::vector<uchar>& status2, std::vector<uchar>& status3)
 {
 
 	//getting rid of points for which the KLT tracking failed or those who have gone outside the frame
@@ -619,7 +615,8 @@ void MultiViewStereoOdometry::deleteUnmatchFeaturesCircle(std::vector<cv::Point2
 		if ((status3.at(i) == 0) || (pt3.x < 0) || (pt3.y < 0) ||
 			(status2.at(i) == 0) || (pt2.x < 0) || (pt2.y < 0) ||
 			(status1.at(i) == 0) || (pt1.x < 0) || (pt1.y < 0) ||
-			(status0.at(i) == 0) || (pt0.x < 0) || (pt0.y < 0))
+			(status0.at(i) == 0) || (pt0.x < 0) || (pt0.y < 0) ||
+			abs( pt1.y - pt0.y) > 1.0 || abs(pt3.y - pt2.y) > 1.0)
 		{
 			if ((pt0.x < 0) || (pt0.y < 0) || (pt1.x < 0) || (pt1.y < 0) || (pt2.x < 0) || (pt2.y < 0) || (pt3.x < 0) || (pt3.y < 0))
 			{
@@ -634,6 +631,37 @@ void MultiViewStereoOdometry::deleteUnmatchFeaturesCircle(std::vector<cv::Point2
 			lastFrame_->pointAges_.erase(lastFrame_->pointAges_.begin() + (i - indexCorrection));
 			indexCorrection++;
 		}
+
+	}
+
+}
+
+
+
+void MultiViewStereoOdometry::deleteUnmatchFeaturesCircle2(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, std::vector<cv::Point2f>& points3, std::vector<cv::Point2f>& points0_return, std::vector<uchar>& status0, std::vector<uchar>& status1, std::vector<uchar>& status2, std::vector<uchar>& status3, std::vector<bool>& matchResult)
+{
+	for (int i = 0; i < status3.size(); i++)
+	{
+		cv::Point2f& pt0 = points0.at(i);
+		cv::Point2f& pt1 = points1.at(i);
+		cv::Point2f& pt2 = points2.at(i);
+		cv::Point2f& pt3 = points3.at(i);
+		cv::Point2f& pt0_r = points0_return.at(i);
+
+		if ((status3.at(i) == 0) || (pt3.x < 0) || (pt3.y < 0) ||
+			(status2.at(i) == 0) || (pt2.x < 0) || (pt2.y < 0) ||
+			(status1.at(i) == 0) || (pt1.x < 0) || (pt1.y < 0) ||
+			(status0.at(i) == 0) || (pt0.x < 0) || (pt0.y < 0) ||
+			abs(pt1.y - pt0.y) > 1.0 || abs(pt3.y - pt2.y) > 1.0)
+		{
+			if ((pt0.x < 0) || (pt0.y < 0) || (pt1.x < 0) || (pt1.y < 0) || (pt2.x < 0) || (pt2.y < 0) || (pt3.x < 0) || (pt3.y < 0))
+			{
+				status3.at(i) = 0;
+			}
+			matchResult[i] = false;
+		}
+		else
+			matchResult[i] = true;
 
 	}
 
