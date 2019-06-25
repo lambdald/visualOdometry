@@ -101,8 +101,6 @@ int main(int argc, char **argv)
     // 运行视觉里程计
     // -----------------------------------------
     clock_t tic = clock();
-    std::vector<FeaturePoint> oldFeaturePointsLeft;
-    std::vector<FeaturePoint> currentFeaturePointsLeft;
 
     for (int frame_id = init_frame_id+1; frame_id <= 4540; frame_id++)
     {
@@ -115,7 +113,6 @@ int main(int argc, char **argv)
         cv::Mat imageRight_t1_color, imageRight_t1;  
         loadImageRight(imageRight_t1_color, imageRight_t1, frame_id, filepath);
 
-
 		cv::Mat pose_mvso;
 		pose_mvso = mvso.grabImage(imageLeft_t1, imageRight_t1);
 		cv::Mat rotation_mvso, translation_mvso;
@@ -123,6 +120,7 @@ int main(int argc, char **argv)
 		translation_mvso = pose_mvso.col(3);
 		pose_results.push_back(pose_mvso);
 
+		//cout << pose_mvso << endl;
 
 
 		rotation = rotation_mvso.clone();

@@ -17,7 +17,7 @@ class Frame
   public:
 
     static int FRAME_COUNT;
-    const int bucketSize = 15;
+    const int bucketSize = 20;
 
     Frame() = default;
     Frame(cv::Mat imgLeft, cv::Mat imgRight);
@@ -32,7 +32,7 @@ class Frame
 	void removeInvalidNewFeature(std::vector<bool>& status);
 	void addStereoMatch(std::vector<cv::Point2f>& keypoints, std::vector<cv::Point3f>& keypoints3D);
 	void addStereoMatch(std::vector<cv::Point2f>& keypoints, cv::Mat& keypoints3D);
-	void setInterframeMatching(std::vector<int>& matchId);
+	void setInterframeMatching(std::vector<int>& matchId, Frame* refFrame);
 
 
 	void updateFeatures();

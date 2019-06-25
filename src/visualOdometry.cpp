@@ -400,19 +400,22 @@ MultiViewStereoOdometry::MultiViewStereoOdometry(const std::string &settingPath)
     float cy = fSettings["Camera.cy"];
     float bf = fSettings["Camera.bf"];
     camera_ = CameraModel(fx, fy, cx, cy, bf);
+	map_ = std::make_shared<Map>();
 }
 
 cv::Mat MultiViewStereoOdometry::grabImage(cv::Mat imgLeft, cv::Mat imgRight)
 {
 	lastFrame_ = currentFrame_;
     currentFrame_ = std::make_shared<Frame>(imgLeft, imgRight);
+	//std::cout << "frame id: " << currentFrame_->frameId_ << std::endl;
 	if (currentFrame_->frameId_ == 0)
 	{
 		pose_ = (cv::Mat_<double>(3, 4) << 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
 		return pose_.clone();
 	}
+	//std::cout << "tracking:" << std::endl;
     tracking();
-	map_->addNewFrame(currentFrame_);
+	//map_->addNewFrame(currentFrame_);
 	return pose_;
 }
 
@@ -430,9 +433,9 @@ cv::Mat MultiViewStereoOdometry::tracking()
 	std::cout << "lastFrameKpts size: " << lastFrameKpts.size() << std::endl;
 	std::cout << "currnetFrameKpts size: " << currentFrameKpts.size() << std::endl;
 	std::cout << "currnetFrameKpts3D size: " << currentFrameKpts3D.size() << std::endl;
-
-
 	std::cout << "track " << lastFrame_->frameId_ << "->" << currentFrame_->frameId_ << std::endl;
+	
+	
 	// 位姿估计
 
 	int staticCount = 0;
@@ -494,12 +497,10 @@ cv::Mat MultiViewStereoOdometry::tracking()
 void MultiViewStereoOdometry::matchingFeatures2(Frame * lastFrame, Frame * currentFrame, std::vector<cv::Point2f>& lasfFrameKpts)
 {
 
-
-	std::vector<cv::Point2f>  pointsLeftReturn_t0;   // feature points to check cicular mathcing validation
-
-	int features_per_bucket = 1;
-
+	int features_per_bucket = 2;
+	std::cout << "extrack featrue" << std::endl;
 	lastFrame->prepareFeature();
+	std::cout << "bucketing feature" << std::endl;
 	lastFrame->bucketingFeature(features_per_bucket);
 	// --------------------------------------------------------
 	// Feature tracking using KLT tracker, bucketing and circular matching
@@ -508,7 +509,7 @@ void MultiViewStereoOdometry::matchingFeatures2(Frame * lastFrame, Frame * curre
 	lasfFrameKpts = lastFrame->getKeypoints();
 	std::vector<cv::Point2f> pointsRight_t0, pointsLeft_t1, pointsRight_t1;
 
-
+	std::cout << "circular match" << std::endl;
 	std::vector<bool> matchStatus;
 	circularMatching(lasfFrameKpts, pointsRight_t0, pointsLeft_t1, pointsRight_t1, matchStatus);
 	std::vector<bool> featureReserved = matchStatus;
@@ -518,7 +519,7 @@ void MultiViewStereoOdometry::matchingFeatures2(Frame * lastFrame, Frame * curre
 	removeInvalidElement(pointsLeft_t1, matchStatus);
 	removeInvalidElement(pointsRight_t1, matchStatus);
 
-	
+	std::cout << "store match result" << std::endl;
 	std::vector<int> matchInv(lasfFrameKpts.size());
 	int zero0 = 0, zero1 = 0;
 	for (int i = 0; i < matchStatus.size(); i++)
@@ -546,7 +547,7 @@ void MultiViewStereoOdometry::matchingFeatures2(Frame * lastFrame, Frame * curre
 	//std::vector<cv::Point3f> points3d_t1(points3D_t1);
 	// 存到当前帧
 	currentFrame->addStereoMatch(pointsLeft_t1, points3D_t1);
-	currentFrame->setInterframeMatching(matchInv);
+	currentFrame->setInterframeMatching(matchInv, lastFrame);
 }
 
 void MultiViewStereoOdometry::circularMatching(
@@ -642,16 +643,16 @@ void MultiViewStereoOdometry::deleteUnmatchFeaturesCircle2(std::vector<cv::Point
 {
 	for (int i = 0; i < status3.size(); i++)
 	{
-		cv::Point2f& pt0 = points0.at(i);
-		cv::Point2f& pt1 = points1.at(i);
-		cv::Point2f& pt2 = points2.at(i);
-		cv::Point2f& pt3 = points3.at(i);
-		cv::Point2f& pt0_r = points0_return.at(i);
+		cv::Point2f& pt0 = points0[i];
+		cv::Point2f& pt1 = points1[i];
+		cv::Point2f& pt2 = points2[i];
+		cv::Point2f& pt3 = points3[i];
+		cv::Point2f& pt0_r = points0_return[i];
 
-		if ((status3.at(i) == 0) || (pt3.x < 0) || (pt3.y < 0) ||
-			(status2.at(i) == 0) || (pt2.x < 0) || (pt2.y < 0) ||
-			(status1.at(i) == 0) || (pt1.x < 0) || (pt1.y < 0) ||
-			(status0.at(i) == 0) || (pt0.x < 0) || (pt0.y < 0) ||
+		if ((status3[i] == 0) || (pt3.x < 0) || (pt3.y < 0) ||
+			(status2[i] == 0) || (pt2.x < 0) || (pt2.y < 0) ||
+			(status1[i] == 0) || (pt1.x < 0) || (pt1.y < 0) ||
+			(status0[i] == 0) || (pt0.x < 0) || (pt0.y < 0) ||
 			abs(pt1.y - pt0.y) > 1.0 || abs(pt3.y - pt2.y) > 1.0)
 		{
 			if ((pt0.x < 0) || (pt0.y < 0) || (pt1.x < 0) || (pt1.y < 0) || (pt2.x < 0) || (pt2.y < 0) || (pt3.x < 0) || (pt3.y < 0))
@@ -662,7 +663,6 @@ void MultiViewStereoOdometry::deleteUnmatchFeaturesCircle2(std::vector<cv::Point
 		}
 		else
 			matchResult[i] = true;
-
 	}
 
 }
