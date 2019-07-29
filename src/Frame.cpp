@@ -70,7 +70,6 @@ namespace MVSO {
 	void Frame::bucketingFeature(int bucket_size)
 	{
 		int ageThresh = 10;
-		std::cout << "111" << std::endl;
 		int bucketWidth = grayImgLeft_.cols / bucketSize + 1;
 		int bucketHeight = grayImgLeft_.rows / bucketSize + 1;
 
@@ -79,19 +78,17 @@ namespace MVSO {
 		for (int i = 0; i < keyPoints_.size(); i++)
 		{
 			cv::Point2f pt = keyPoints_[i];
-
-
+			if (pt.x > grayImgLeft_.cols || pt.y > grayImgLeft_.rows)
+				continue;
 			int age = pointAges_[i];
 			int c = std::floor(pt.x / bucketSize);
 			int r = std::floor(pt.y / bucketSize);
 			//if (buckets[r][c].size() < bucket_size)
-
 			buckets[r*bucketWidth+c].push_back(i);
 			//count++;
 
 		}
 
-		std::cout << "222" << std::endl;
 		std::vector<cv::Point2f> newKeypoints;
 		std::vector<int> newAges;
 		std::vector<int> newKeypointIndex;
@@ -139,7 +136,6 @@ namespace MVSO {
 		keyPoints_ = newKeypoints;
 		pointAges_ = newAges;
 		baseKeyPointIndex_ = newKeypointIndex;
-		std::cout << "333" << std::endl;
 	}
 
 	void Frame::removeInvalidNewFeature(std::vector<bool>& status)

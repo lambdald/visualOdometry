@@ -120,7 +120,7 @@ namespace MVSO
 		cv::Mat tracking();
 		std::shared_ptr<Map> map_;
 
-
+		std::queue<std::shared_ptr<Frame>> frames_;
     };
 }
 

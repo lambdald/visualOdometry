@@ -171,11 +171,11 @@ namespace MVSO
 				w = 7;
 			else if (w < 1.0)
 				w = 1.0;
-			weights.push_back(w);
+			weights.push_back(exp(-w));
 		}
 
 		PoseOptimizer optimizer(camera_);
-		cv::Rodrigues(rvec, rotation);
+		//cv::Rodrigues(rvec, rotation);
 		//optimizer.optimizePose(points3d, points2d, rotation, translation);
 		optimizer.optimizePose(points3d, points2d, weights,rotation, translation);
 
